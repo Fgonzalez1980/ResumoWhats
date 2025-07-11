@@ -13,4 +13,4 @@ const salvarMensagem = async (msg) => {
   await pool.query(query, values);
 };
 
-module.exports = { salvarMensagem };
+module.exports = { salvarMensagem };
