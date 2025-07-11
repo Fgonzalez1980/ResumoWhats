@@ -3,12 +3,6 @@ const { useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/bai
 const { salvarMensagem } = require('./db');
 require('dotenv').config();
 
-// 🟩 Adicione os IDs reais dos grupos que você deseja monitorar
-const GRUPOS_PERMITIDOS = [
-  "120363047732347582@g.us",  // Exemplo
-  "120363040505921426@g.us"   // Substitua pelos reais
-];
-
 async function iniciar() {
   const { state, saveCreds } = await useMultiFileAuthState('auth');
 
@@ -24,18 +18,19 @@ async function iniciar() {
       if (!msg.message || !msg.key.remoteJid.endsWith('@g.us')) continue;
 
       const grupoId = msg.key.remoteJid;
+      const nomeGrupo = msg.pushName || grupoId;
       const conteudo = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
 
       if (conteudo.trim() === '') return;
 
-      // 🔎 Se quiser descobrir os IDs antes de filtrar, descomente o log abaixo:
-      // console.log(`📍 Grupo recebido: ${grupoId} | Conteúdo: ${conteudo}`);
-
-      if (!GRUPOS_PERMITIDOS.includes(grupoId)) continue;
-
       const autor = msg.key.participant || 'desconhecido';
       const id = msg.key.id;
       const timestamp = new Date((msg.messageTimestamp || Date.now()) * 1000);
+
+      console.log('🆔 ID do grupo:', grupoId);
+      console.log('📛 Nome (parcial):', nomeGrupo);
+      console.log('💬 Mensagem:', conteudo);
+      console.log('---');
 
       const mensagem = {
         id,
@@ -47,9 +42,9 @@ async function iniciar() {
 
       try {
         await salvarMensagem(mensagem);
-        console.log(`✅ Mensagem salva de ${grupoId}: ${conteudo}`);
+        console.log('✅ Mensagem salva no banco\n');
       } catch (err) {
-        console.error(`❌ Erro ao salvar mensagem:`, err);
+        console.error('❌ Erro ao salvar mensagem:', err);
       }
     }
   });
