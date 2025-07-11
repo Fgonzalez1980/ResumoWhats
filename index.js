@@ -1,8 +1,13 @@
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { salvarMensagem } = require('./db');
-const { Boom } = require('@hapi/boom');
 require('dotenv').config();
+
+// 🟩 Adicione os IDs reais dos grupos que você deseja monitorar
+const GRUPOS_PERMITIDOS = [
+  "120363047732347582@g.us",  // Exemplo
+  "120363040505921426@g.us"   // Substitua pelos reais
+];
 
 async function iniciar() {
   const { state, saveCreds } = await useMultiFileAuthState('auth');
@@ -14,37 +19,48 @@ async function iniciar() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const msg of messages) {
       if (!msg.message || !msg.key.remoteJid.endsWith('@g.us')) continue;
+
+      const grupoId = msg.key.remoteJid;
       const conteudo = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-      const grupo = msg.pushName || msg.key.remoteJid;
+
+      if (conteudo.trim() === '') return;
+
+      // 🔎 Se quiser descobrir os IDs antes de filtrar, descomente o log abaixo:
+      // console.log(`📍 Grupo recebido: ${grupoId} | Conteúdo: ${conteudo}`);
+
+      if (!GRUPOS_PERMITIDOS.includes(grupoId)) continue;
+
       const autor = msg.key.participant || 'desconhecido';
       const id = msg.key.id;
       const timestamp = new Date((msg.messageTimestamp || Date.now()) * 1000);
 
-      if (conteudo.trim() === '') return;
-
       const mensagem = {
         id,
-        grupo,
+        grupo: grupoId,
         mensagem: conteudo,
         autor,
         timestamp
       };
 
-      await salvarMensagem(mensagem);
-      console.log(🔹 Mensagem salva: ${conteudo});
+      try {
+        await salvarMensagem(mensagem);
+        console.log(`✅ Mensagem salva de ${grupoId}: ${conteudo}`);
+      } catch (err) {
+        console.error(`❌ Erro ao salvar mensagem:`, err);
+      }
     }
   });
 
   sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
       const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log('🛑 Conexão encerrada. Reconectar?', shouldReconnect);
+      console.log('🔌 Conexão encerrada. Reconectar?', shouldReconnect);
       if (shouldReconnect) iniciar();
     } else if (connection === 'open') {
-      console.log('✅ Conectado com sucesso!');
+      console.log('✅ Conectado ao WhatsApp com sucesso!');
     }
   });
 }
