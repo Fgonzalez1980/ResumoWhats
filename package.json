@@ -8,6 +8,6 @@
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.0",
     "dotenv": "^16.3.1",
-    "pg": "^8.11.3"
-  }
+    "pg": "^8.11.3"
+  }
 }
