@@ -1,16 +1,27 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const pool = new Pool();
+// 📦 Conexão com o PostgreSQL via variáveis do Railway
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
-const salvarMensagem = async (msg) => {
+// 💾 Função para salvar mensagem no banco
+async function salvarMensagem({ id, grupo, mensagem, autor, timestamp }) {
   const query = `
-    INSERT INTO whatsapp_news (id, grupo, mensagem, autor, timestamp)
+    INSERT INTO public.agent11_whatsapp_news (id, grupo, mensagem, fonte, datahora)
     VALUES ($1, $2, $3, $4, $5)
-    ON CONFLICT (id) DO NOTHING
+    ON CONFLICT (id) DO NOTHING;
   `;
-  const values = [msg.id, msg.grupo, msg.mensagem, msg.autor, msg.timestamp];
-  await pool.query(query, values);
-};
 
-module.exports = { salvarMensagem };
+  const values = [id, grupo, mensagem, autor, timestamp];
+
+  await pool.query(query, values);
+}
+
+module.exports = {
+  salvarMensagem
+};
