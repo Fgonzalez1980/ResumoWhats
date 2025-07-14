@@ -1,3 +1,4 @@
+// index.js
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { salvarMensagem } = require('./db');
@@ -13,38 +14,28 @@ async function iniciar() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  // 🔒 Lista de grupos autorizados
-  const gruposPermitidos = [
-    "🆓🆓  BR Angels Membros Investidores 🚀🚀",
-    "AvantiNews",
-    "Pay Insights 🚀💲",
-    "Henrique",
-    "Subs /MarketP / Payments"
-  ];
-
-  // 📥 Recebimento de mensagens
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const msg of messages) {
       if (!msg.message || !msg.key.remoteJid.endsWith('@g.us')) continue;
 
       const grupoId = msg.key.remoteJid;
-      const nomeGrupo = msg.pushName || grupoId;
+      let nomeGrupo = grupoId;
+      try {
+        const metadata = await sock.groupMetadata(grupoId);
+        nomeGrupo = metadata.subject || grupoId;
+      } catch (err) {
+        console.warn('⚠️ Não foi possível obter nome do grupo:', grupoId);
+      }
+
       const conteudo = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+      if (conteudo.trim() === '') return;
+
       const autor = msg.key.participant || 'desconhecido';
       const id = msg.key.id;
       const timestamp = new Date((msg.messageTimestamp || Date.now()) * 1000);
 
-      // ❌ Ignora mensagens vazias
-      if (!conteudo || conteudo.trim() === '') return;
-
-      // ⚠️ Filtro: grupo permitido e mensagem com link
-      const grupoEhValido = gruposPermitidos.includes(nomeGrupo);
-      const contemLink = conteudo.includes('http');
-
-      if (!grupoEhValido || !contemLink) return;
-
       console.log('🆔 ID do grupo:', grupoId);
-      console.log('📛 Nome (validado):', nomeGrupo);
+      console.log('📛 Nome (grupo):', nomeGrupo);
       console.log('💬 Mensagem:', conteudo);
       console.log('---');
 
@@ -52,8 +43,9 @@ async function iniciar() {
         id,
         grupo: nomeGrupo,
         mensagem: conteudo,
-        autor,
-        timestamp
+        fonte: 'Grupo WhatsApp',
+        relevancia: 'Alta',
+        datahora: timestamp
       };
 
       try {
